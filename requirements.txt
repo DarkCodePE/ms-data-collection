@@ -1,13 +1,13 @@
 # dependencies
 colorama
-python-dotenv
+python-dotenv~=1.0.1
 uvicorn
-pydantic
-fastapi
-aiokafka
-SQLAlchemy
+pydantic~=2.10.4
+fastapi~=0.115.6
+aiokafka~=0.12.0
+SQLAlchemy~=2.0.36
 PyJWT
-psycopg2
+psycopg2~=2.9.10
 redis
 structlog
 pydantic_settings
@@ -17,3 +17,9 @@ uvicorn
 langchain
 langchain-openai
 langsmith
+motor~=3.6.0
+pandas~=2.2.3
+python-jobspy
+starlette~=0.41.3
+httpx~=0.28.1
+jobspy~=0.29.0

@@ -28,6 +28,16 @@ class Settings(BaseSettings):
     DB_USER: str = "postgres"
     DB_PASSWORD: str = "123456"
 
+    # MongoDB Configuration
+    MONGO_URI: str = "mongodb://admin:password@localhost:27017"
+    MONGO_DB_NAME: str = "scraper_db"
+    MONGO_COLLECTION_NAME: str = "jobs"
+    MONGO_USER: str = "admin"
+    MONGO_PASSWORD: str = "password"
+    MONGO_AUTH_DB: str = "admin"
+    MONGO_HOST: str = "localhost"
+    MONGO_PORT: int = 27017
+
     # LangSmith Configuration
     LANGCHAIN_TRACING_V2: str = "true"
     LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"

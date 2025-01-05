@@ -59,7 +59,7 @@ class LinkedInScraper:
                     "user_prompt": prompt,
                     "website_url": search_url
                 })
-
+                logger.info(f"Scraping result: {result}")
                 # Supongamos que 'result' es un dict con la clave 'job_listings'
                 if isinstance(result, dict) and "job_listings" in result:
                     # result["job_listings"] es una lista de dicts
