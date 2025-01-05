@@ -1,0 +1,19 @@
+# dependencies
+colorama
+python-dotenv
+uvicorn
+pydantic
+fastapi
+aiokafka
+SQLAlchemy
+PyJWT
+psycopg2
+redis
+structlog
+pydantic_settings
+langchain_scrapegraph
+python-dotenv
+uvicorn
+langchain
+langchain-openai
+langsmith
