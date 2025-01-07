@@ -105,7 +105,47 @@ class MongoDBRepository:
 
         jobs = []
         async for doc in cursor:
-            jobs.append(RawJobData(**doc))
+            try:
+                # Función helper para limpiar campos que deberían ser strings
+                def clean_string_field(value):
+                    if isinstance(value, float) or value is None or str(value).lower() == 'nan':
+                        return ''
+                    return str(value)
+
+                # Limpiar los campos problemáticos
+                doc['description'] = clean_string_field(doc.get('description'))
+                doc['job_type'] = clean_string_field(doc.get('job_type'))
+                doc['experience_level'] = clean_string_field(doc.get('experience_level'))
+
+                # Asegurarse de que todos los campos requeridos existan
+                required_fields = {
+                    'source': doc.get('source'),
+                    'job_id': doc.get('job_id'),
+                    'title': clean_string_field(doc.get('title')),
+                    'company': clean_string_field(doc.get('company')),
+                    'description': clean_string_field(doc.get('description')),
+                    'location': clean_string_field(doc.get('location')),
+                    'url': clean_string_field(doc.get('url')),
+                    'salary_range': doc.get('salary_range'),
+                    'requirements': doc.get('requirements', []),
+                    'job_type': clean_string_field(doc.get('job_type')),
+                    'experience_level': clean_string_field(doc.get('experience_level')),
+                    'processed': doc.get('processed', False),
+                    'created_at': doc.get('created_at', datetime.utcnow()),
+                    'raw_data': doc.get('raw_data', {})
+                }
+
+                # Crear el objeto RawJobData con los campos procesados
+                raw_job = RawJobData(**required_fields)
+                jobs.append(raw_job)
+                logging.debug(f"Successfully processed job: {doc.get('job_id')}")
+
+            except Exception as e:
+                logging.error(f"Error processing document from MongoDB: {str(e)}",
+                              extra={"document": str(doc)})
+                continue
+
+        logging.info(f"Found {len(jobs)} unprocessed jobs.")
         return jobs
 
     async def mark_job_as_processed(self, job_id: str) -> bool:

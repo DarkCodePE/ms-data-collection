@@ -39,20 +39,18 @@ kafka_producer: KafkaProducer | None = None
 
 @app.on_event("startup")
 async def startup_event():
-    print(">>> DEBUG: Entrando a startup_event() <<<")
+    #print(">>> DEBUG: Entrando a startup_event() <<<")
     await initialize_database()
 
     try:
-        print("DEBUG: Antes de instanciar KafkaProducer.")
+        # Inicializar el producer de Kafka
         app.state.kafka_producer = KafkaProducer()
-        print("DEBUG: Después de instanciar KafkaProducer, antes de start().")
-
         await app.state.kafka_producer.start()
-        print("DEBUG: Después de await kafka_producer.start().")
+        ##print("Kafka producer initialized and started successfully")
 
         logger.info("Kafka producer started.")
     except Exception as e:
-        print(f"ERROR en startup_event: {str(e)}")
+        ##print(f"ERROR en startup_event: {str(e)}")
         logger.exception("Excepción inicializando el KafkaProducer")
 
 

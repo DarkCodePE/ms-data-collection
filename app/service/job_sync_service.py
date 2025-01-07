@@ -21,7 +21,9 @@ class JobSyncService:
             proxies: List[str] = None
     ):
         self.mongo_repository = mongo_repository
+        #print("Initializing ETL service...")
         self.etl_service = JobETLService(mongo_repository, kafka_producer)
+        #print("ETL service initialized.")
         self.scraper = JobSpyScraper(
             mongo_repository=mongo_repository,
             etl_service=self.etl_service,
@@ -31,7 +33,7 @@ class JobSyncService:
     async def start_sync(self):
         """Inicia el proceso de sincronización continua."""
         try:
-            print("Starting sync process...")
+            #print("Starting sync process...")
             await self.scraper.start_scraping()
         except Exception as e:
             logger.error(f"Error in sync process: {str(e)}")
@@ -44,10 +46,10 @@ class JobSyncService:
         try:
             # Usamos la función scrape_jobs directamente de jobspy
             jobs_df = scrape_jobs(
-                site_name=["linkedin", "indeed", "glassdoor"],
+                site_name=["indeed"],
                 search_term=search_term,
                 location=location,
-                results_wanted=50
+                results_wanted=10
             )
 
             # Usamos el método a través de la instancia de scraper

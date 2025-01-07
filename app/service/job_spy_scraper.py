@@ -22,7 +22,7 @@ class JobSpyScraper:
             etl_service: JobETLService,
             scraping_interval: int = 3600,  # 1 hora por defecto
             proxies: List[str] = None,
-            results_wanted: int = 50
+            results_wanted: int = 10
     ):
         self.mongo_repository = mongo_repository
         self.etl_service = etl_service
@@ -45,9 +45,9 @@ class JobSpyScraper:
             try:
                 await self.run_scraping_cycle()
                 # Procesar trabajos pendientes con el ETL
-                print("Processing ETL jobs...")
+                #print("Processing ETL jobs...")
                 await self.etl_service.process_pending_jobs()
-                print("ETL jobs processed.")
+                #print("ETL jobs processed.")
                 await asyncio.sleep(self.scraping_interval)
             except Exception as e:
                 logging.error(f"Error in scraping cycle: {str(e)}")
@@ -59,18 +59,18 @@ class JobSpyScraper:
             try:
                 logging.info(f"Starting scraping for term: {search_term}")
                 jobs_df = scrape_jobs(
-                    site_name=["linkedin", "indeed", "glassdoor"],
+                    site_name=["indeed",],
                     search_term=search_term,
                     location="Remote",
                     results_wanted=self.results_wanted,
-                    hours_old=72,  # Últimas 72 horas
+                    hours_old=120,  # Últimas 72 horas
                     proxies=self.proxies,
                     description_format="markdown",
-                    enforce_annual_salary=True,
+                    enforce_annual_salary=False,
                     verbose=1
                 )
-                logging.info(f"Scraping completed. Found {len(jobs_df)} jobs.")
-                logging.debug(f"Scraping results: {jobs_df}")
+                print(f"Scraping completed. Found {len(jobs_df)} jobs.")
+                print(f"Scraping results: {jobs_df}")
                 await self.process_scraped_jobs(jobs_df)
 
             except Exception as e:
@@ -97,11 +97,11 @@ class JobSpyScraper:
 
         # Verificar conexión a MongoDB
         if not await self.mongo_repository.verify_connection():
-            #print("MongoDB connection is not available")
+            ##print("MongoDB connection is not available")
             logging.error("MongoDB connection is not available")
             return
 
-        #print(f"Processing {len(jobs_df)} jobs.")
+        ##print(f"Processing {len(jobs_df)} jobs.")
         for _, job in jobs_df.iterrows():
             try:
                 # Helper function para manejar valores nan/None
@@ -120,7 +120,7 @@ class JobSpyScraper:
 
                 # Mapear la fuente
                 source = self._map_source(job['site'])
-                #print(f"source: {source}")
+                ##print(f"source: {source}")
                 # Preparar los datos crudos
                 raw_data = self._prepare_raw_data(job)
                 #print(f"raw_data: {raw_data}")
@@ -141,11 +141,11 @@ class JobSpyScraper:
                     processed=False,
                     created_at=datetime.now(timezone.utc)
                 )
-                #print(f"raw_job: {raw_job}")
+                ##print(f"raw_job: {raw_job}")
                 await self.mongo_repository.save_raw_job(raw_job)
 
             except Exception as e:
-                print(f"Error processing job: {str(e)}")
+                #print(f"Error processing job: {str(e)}")
                 logging.error(f"Error processing job: {str(e)}", exc_info=True)
                 continue
 
@@ -162,38 +162,92 @@ class JobSpyScraper:
             logging.warning(f"Unrecognized site: {site_name}. Defaulting to OTHER.")
         return mapping.get(site_name_lower, JobSource.OTHER)
 
-    def _format_salary(self, job: pd.Series) -> Optional[str]:
-        """Formatea la información de salario para trabajos de Indeed y otras fuentes."""
+    def extract_country_from_location(self, location: str) -> str:
+        """
+        Extrae el país de una cadena de ubicación, devolviendo únicamente el código del país o una cadena vacía si no se encuentra.
+        """
         try:
-            min_amount = job.get('min_amount')
-            max_amount = job.get('max_amount')
-            interval = job.get('interval')
-            currency = job.get('currency', 'USD')
+            if not location or not isinstance(location, str):
+                return ""
 
-            # Si todos los valores son nan, retornar None
-            if all(pd.isna(x) for x in [min_amount, max_amount]):
-                return None
+            # Normalizar la ubicación (convertir a minúsculas y eliminar espacios extras)
+            location = location.strip().lower()
 
-            # Convertir valores nan a None
-            min_amount = None if pd.isna(min_amount) else float(min_amount)
-            max_amount = None if pd.isna(max_amount) else float(max_amount)
-            interval = None if pd.isna(interval) else str(interval)
+            # Lista de identificadores del país Perú
+            peru_identifiers = ["pe", "peru", "perú"]
 
-            # Si tenemos rango completo
-            if min_amount is not None and max_amount is not None:
-                return f"{currency} {min_amount:,.2f} - {max_amount:,.2f} {interval or 'per year'}"
-            # Si solo tenemos mínimo
-            elif min_amount is not None:
-                return f"{currency} {min_amount:,.2f}+ {interval or 'per year'}"
-            # Si solo tenemos máximo
-            elif max_amount is not None:
-                return f"Up to {currency} {max_amount:,.2f} {interval or 'per year'}"
+            # Verificar si algún identificador de Perú está en la ubicación
+            for identifier in peru_identifiers:
+                if identifier in location:
+                    return "PE"  # Código estándar para Perú
 
-            return None
+            # Si no se encuentra un identificador, devolver cadena vacía
+            return ""
+        except Exception as e:
+            logging.error(f"Error al extraer el país de la ubicación: {str(e)}")
+            return ""
+
+    def _format_salary(self, job: pd.Series) -> Optional[str]:
+        """
+        Formatea la información de salario para trabajos, ajustando valores predeterminados si hay datos faltantes.
+        """
+        try:
+            print(f"job: {job}")
+            # Extraer datos directamente del trabajo
+            min_amount = job.get("min_amount")
+            max_amount = job.get("max_amount")
+            interval = job.get("interval")
+            currency = job.get("currency")
+            location = job.get("location", "").replace(",", "").strip().lower()
+            # Extraer el país usando el nuevo algoritmo
+            country = self.extract_country_from_location(location).lower()
+            print(f"country: {country}")
+            # Reemplazar NaN o None con valores predeterminados
+            min_amount = float(min_amount) if pd.notna(min_amount) else None
+            max_amount = float(max_amount) if pd.notna(max_amount) else None
+            interval = str(interval).lower() if pd.notna(interval) else None
+            currency = currency if pd.notna(currency) else None
+            print(f"location: {country}")
+            # Detectar ubicación y ajustar moneda e intervalo
+            if "peru" in country or "pe" in country:  # Detectar trabajos en PerúPerú
+                print("Trabajo en Perú detectado.")
+                if currency is None or currency == "USD":  # Cambiar a Soles si no está definido o es USD
+                    print("Cambiando moneda a PEN (Soles) para trabajos en Perú.")
+                    currency = "PEN"  # Cambiar moneda a Soles
+                if interval == "yearly":  # Convertir salario anual a mensual
+                    print("Convirtiendo salario anual a mensual (PEN).")
+                    if min_amount:
+                        min_amount /= 12
+                    if max_amount:
+                        max_amount /= 12
+                    interval = "monthly"
+
+            # Asignar valores genéricos si falta información de salario
+            if not min_amount and not max_amount:
+                min_amount, max_amount = 1000.0, 3000.0  # Valores predeterminados
+
+            # Formatear el intervalo
+            interval_str = {
+                "monthly": "mensual",
+                "yearly": "anual",
+                "weekly": "semanal",
+                "daily": "diario",
+                "hourly": "por hora",
+            }.get(interval, "")
+
+            # Construir la cadena de salario
+            if min_amount and max_amount:
+                return f"{currency} {min_amount:,.2f} - {max_amount:,.2f} {interval_str}"
+            elif min_amount:
+                return f"{currency} {min_amount:,.2f}+ {interval_str}"
+            elif max_amount:
+                return f"Hasta {currency} {max_amount:,.2f} {interval_str}"
+            else:
+                return "Salario no especificado."
 
         except Exception as e:
-            logging.error(f"Error formatting salary: {str(e)}")
-            return None
+            logging.error(f"Error al formatear salario: {str(e)}")
+            return "Error al calcular salario."
 
     def _extract_requirements(self, job: pd.Series) -> List[str]:
         """Extrae requisitos del trabajo basados en la descripción."""

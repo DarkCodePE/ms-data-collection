@@ -80,10 +80,10 @@ class KafkaProducer:
         try:
             # Registrar el evento que se intenta enviar
             logger.debug(f"Attempting to send event to topic {topic}: {event}")
-            print(f"Attempting to send event to topic {topic}: {event}")
+            #print(f"Attempting to send event to topic {topic}: {event}")
             # Intentar enviar el mensaje
             await self._producer.send_and_wait(topic, event)
-            print(f"Event sent to Kafka: {event['type']}")
+            #print(f"Event sent to Kafka: {event['type']}")
             logger.info(f"Successfully sent event type '{event.get('type')}' to topic {topic}")
             logger.debug(f"Event details: {event}")
 

@@ -54,6 +54,7 @@ router = APIRouter()
 @router.post("/scrape")
 async def scrape_and_sync_jobs(request: ScrapingRequest, app_request: Request):
     logging.info("Starting scrape_and_sync_jobs endpoint")
+    #print("Starting scrape_and_sync_jobs endpoint")
 
     mongo_repo = MongoDBRepository(settings.MONGO_URI, settings.MONGO_DB_NAME)
 
@@ -63,57 +64,65 @@ async def scrape_and_sync_jobs(request: ScrapingRequest, app_request: Request):
 
         kafka_producer = app_request.app.state.kafka_producer
 
+        # Verificar que el producer está iniciado
+        if not kafka_producer._started:
+            #print("Kafka producer not started. Starting...")
+            await kafka_producer.start()
+
         # Realizar scraping con JobSpy
         logging.info("Starting JobSpy scraping...")
-        # jobs = scrape_jobs(
-        #     site_name=["linkedin"],
-        #     search_term="software engineer",
-        #     location="San Francisco, CA",
-        #     results_wanted=20,
-        #     hours_old=72,
-        #     country_indeed='USA',
-        # )
+        #print("Starting JobSpy scraping...")
+
         jobs_df = scrape_jobs(
-            site_name=["linkedin", "indeed", "google"],
+            site_name=["indeed"],
             search_term=",".join(request.keywords),
-            location=country,  # Configurar el país aquí
+            location=country,
             results_wanted=10,
-            hours_old=72,
+            hours_old=120,
+            enforce_annual_salary=False,
             country_indeed='peru',
         )
-        #print(f"jobs_dfxxxx: {jobs_df}")
-        # Verificar si jobs es un DataFrame y tiene datos
-        if jobs_df is None:
-            logging.error("JobSpy returned None instead of a DataFrame")
-            raise ValueError("No jobs data returned from scraping")
 
-        logging.info(f"JobSpy scraping completed. DataFrame shape: {jobs_df.shape}")
-        logging.info(f"DataFrame columns: {jobs_df.columns.tolist()}")
+        if jobs_df is None or jobs_df.empty:
+            #print("No jobs found in scraping")
+            return JSONResponse(
+                content={"message": "No jobs found in scraping"},
+                status_code=200
+            )
 
-        # Mostrar una muestra de los datos
-        if not jobs_df.empty:
-            logging.info("Sample of first job data:")
-            sample_job = jobs_df.iloc[0].to_dict()
-            logging.info(f"First job: {sample_job}")
+        #print(f"Found {len(jobs_df)} jobs. Starting ETL process...")
 
-        # Inicializar servicios
+        # Inicializar ETL service directamente
+        etl_service = JobETLService(mongo_repo, kafka_producer)
+
+        # Inicializar scraper con el ETL
         job_spy_scraper = JobSpyScraper(
             mongo_repository=mongo_repo,
-            etl_service=JobETLService(mongo_repo, kafka_producer),
+            etl_service=etl_service,
             proxies=None,
             results_wanted=50
         )
 
         # Procesar trabajos
-        logging.info("Starting job processing...")
+        #print("Processing scraped jobs...")
         await job_spy_scraper.process_scraped_jobs(jobs_df)
-        logging.info("Job processing completed")
+        #print("Jobs processed and saved to MongoDB.")
+
+        # Ejecutar ETL explícitamente
+        #print("Starting ETL process_pending_jobs...")
+        await etl_service.process_pending_jobs()
+        #print("ETL process completed.")
 
         return JSONResponse(
-            content={"message": f"Scraping and synchronization completed successfully. Found {len(jobs_df)} jobs."},
+            content={
+                "message": f"Scraping and synchronization completed successfully. Found {len(jobs_df)} jobs.",
+                "status": "success",
+                "jobs_processed": len(jobs_df)
+            },
             status_code=200
         )
 
     except Exception as e:
+        #print(f"Error in scrape_and_sync_jobs: {str(e)}")
         logging.error(f"Error in scrape_and_sync_jobs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

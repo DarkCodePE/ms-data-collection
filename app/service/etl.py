@@ -89,7 +89,7 @@ class JobETLService:
         try:
             # Obtener trabajos sin procesar
             raw_jobs = await self.mongo_repository.get_unprocessed_jobs(self.batch_size)
-            print(f"Found {len(raw_jobs)} unprocessed jobs.")
+            #print(f"Found {len(raw_jobs)} unprocessed jobs.")
             for raw_job in raw_jobs:
                 try:
                     # Transformar datos

@@ -21,7 +21,7 @@ async def initialize_database():
     # Verifica si la colección existe, si no, la crea
     existing_collections = await db.list_collection_names()
     if settings.MONGO_COLLECTION_NAME not in existing_collections:
-        print(f"Creating collection: {settings.MONGO_COLLECTION_NAME}")
+        #print(f"Creating collection: {settings.MONGO_COLLECTION_NAME}")
         await db.create_collection(settings.MONGO_COLLECTION_NAME)
 
     # Configura índices en la colección
