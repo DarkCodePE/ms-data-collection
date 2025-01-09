@@ -77,10 +77,12 @@ async def scrape_and_sync_jobs(request: ScrapingRequest, app_request: Request):
             site_name=["indeed"],
             search_term=",".join(request.keywords),
             location=country,
-            results_wanted=10,
-            hours_old=120,
+            results_wanted=1000,
+            hours_old=1200,
             enforce_annual_salary=False,
             country_indeed='peru',
+            description_format="markdown",
+            verbose=2,
         )
 
         if jobs_df is None or jobs_df.empty:

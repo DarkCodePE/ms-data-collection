@@ -22,7 +22,7 @@ class JobSpyScraper:
             etl_service: JobETLService,
             scraping_interval: int = 3600,  # 1 hora por defecto
             proxies: List[str] = None,
-            results_wanted: int = 10
+            results_wanted: int = 1000
     ):
         self.mongo_repository = mongo_repository
         self.etl_service = etl_service
@@ -59,7 +59,7 @@ class JobSpyScraper:
             try:
                 logging.info(f"Starting scraping for term: {search_term}")
                 jobs_df = scrape_jobs(
-                    site_name=["indeed",],
+                    site_name=["indeed"],
                     search_term=search_term,
                     location="Remote",
                     results_wanted=self.results_wanted,
@@ -67,7 +67,7 @@ class JobSpyScraper:
                     proxies=self.proxies,
                     description_format="markdown",
                     enforce_annual_salary=False,
-                    verbose=1
+                    verbose=2,
                 )
                 print(f"Scraping completed. Found {len(jobs_df)} jobs.")
                 print(f"Scraping results: {jobs_df}")
