@@ -22,20 +22,20 @@ class Settings(BaseSettings):
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
 
     # Database Configuration
-    DB_HOST: str = "localhost"
+    #DB_HOST: str = "mi_postgres"
     DB_PORT: str = "5432"
     DB_NAME: str = "jobs_db"
     DB_USER: str = "postgres"
     DB_PASSWORD: str = "123456"
 
     # MongoDB Configuration
-    MONGO_URI: str = "mongodb://admin:password@localhost:27017"
-    MONGO_DB_NAME: str = "scraper_db"
+    MONGO_URI: str = "mongodb://admin:password@mongodb:27017/scraper_db?authSource=admin"
+    MONGO_DB: str = "scraper_db"
     MONGO_COLLECTION_NAME: str = "jobs"
     MONGO_USER: str = "admin"
     MONGO_PASSWORD: str = "password"
     MONGO_AUTH_DB: str = "admin"
-    MONGO_HOST: str = "localhost"
+    MONGO_HOST: str = "mongodb"
     MONGO_PORT: int = 27017
 
     # LangSmith Configuration
@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
     LANGCHAIN_API_KEY: str = "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"
     LANGCHAIN_PROJECT: str = "JOB-IA"
+
+    # Configuración de Redis
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: str = "123456"
 
     class Config:
         case_sensitive = True
